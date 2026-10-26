@@ -68,7 +68,8 @@
       ],
       "expo-asset",
       "./plugins/withReleaseSigning",
-      "./plugins/withWindowsPathFix"
+      "./plugins/withWindowsPathFix",
+      "./plugins/withGradleHeap"
     ],
     "extra": {
       "eas": {
