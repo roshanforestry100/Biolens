@@ -1,25 +1,79 @@
 {
   "expo": {
-    "name": "BiolensApp",
-    "slug": "BiolensApp",
+    "name": "Biolens By Jungle Tak",
+    "slug": "jungletak_biolens",
+    "owner": "ashishmeharm27",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/launcher_icon.png",
+    "scheme": "jungletakbiolens",
     "userInterfaceStyle": "light",
+    "updates": {
+      "enabled": false
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jungletak.biolens",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BioLens requires camera access to identify species in real-time.",
+        "NSPhotoLibraryUsageDescription": "BioLens needs access to your photos so you can identify plants from existing images."
+      }
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.jungletak.biolens",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BioLens requires camera access to identify species in real-time.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BioLens needs access to your photos so you can identify plants from existing images."
+        }
+      ],
+      "expo-asset",
+      "./plugins/withReleaseSigning",
+      "./plugins/withWindowsPathFix"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f27c7c37-87da-48ce-b9a2-7a4cdc0d8bf1"
+      }
     }
   }
 }
