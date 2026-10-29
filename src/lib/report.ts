@@ -49,6 +49,8 @@ export async function generateResearchReport(options: ReportOptions): Promise<st
       region: scan.region,
       basic: scan.metadata?.basic ?? null,
       scientificData: scan.metadata?.scientific ?? null,
+      species_profile: scan.metadata?.species_profile ?? null,
+      image_observations: scan.metadata?.image_observations ?? null,
       plantImageBase64,
     },
   };

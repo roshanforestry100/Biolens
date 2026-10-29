@@ -262,6 +262,17 @@ export function isInvasiveScan(scan?: Partial<ScanResult>): boolean {
 }
 
 export function isNativeScan(scan?: Partial<ScanResult>): boolean {
+  // `regulatory_status` is usually the invasive verdict ("Not Invasive"), which
+  // would mask a genuine native_status.  Check the native fields first.
+  const meta = scan?.metadata;
+  const basic = meta?.basic;
+  const nativeRaw = String(basic?.native_status || meta?.native_status || '').toLowerCase();
+  if (nativeRaw) {
+    return (
+      /(^|[^a-z])(native|indigenous)([^a-z]|$)/.test(nativeRaw) &&
+      !/not[\s-]?native|non[\s-]?native/.test(nativeRaw)
+    );
+  }
   const raw = getRegulatoryLabel(scan);
   return (
     /(^|[^a-z])(native|indigenous)([^a-z]|$)/.test(raw) &&
@@ -273,13 +284,15 @@ export function isNativeScan(scan?: Partial<ScanResult>): boolean {
  * Aggregate field statistics.  Total counters come from `auth.users`
  * metadata (all-time, never truncated); live details come from local history.
  */
-export async function getStats(): Promise<BioLensStats> {
+export async function getStats(preloaded?: ScanResult[]): Promise<BioLensStats> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const cached = await readJson<{ totalScans: number; totalSpecies: number; speciesList: string[] }>(
       STATS_CACHE_KEY
     );
-    const history = await getHistory();
+    // Cloud rows are the source of truth for a fresh install; only fall back to
+    // the local mirror when the caller has nothing to hand us.
+    const history = preloaded ?? (await getHistory());
     const meta: Record<string, any> = user?.user_metadata || {};
 
     let totalScans: number | undefined =
@@ -413,6 +426,8 @@ function normalizeScan(row: any): ScanResult {
       meta.regulatory_status ||
       meta.basic?.invasive_threat_status ||
       meta.basic?.native_status,
+    species_profile: meta.species_profile,
+    image_observations: meta.image_observations,
   };
 }
 

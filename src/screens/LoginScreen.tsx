@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, Alert,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Image,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { Mail, Lock, LogIn, Leaf } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
-import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { Colors, Fonts } from '../constants/theme';
+
+const LOGO = require('../../assets/logo.png');
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -27,7 +27,7 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await signInWithEmail(email, password);
+    const { error } = await signInWithEmail(email.trim(), password);
     setLoading(false);
     if (error) Alert.alert('Login Failed', error);
   };
@@ -39,167 +39,229 @@ export default function LoginScreen() {
     if (error) Alert.alert('Google Sign-In Failed', error);
   };
 
+  const handleForgot = async () => {
+    if (!email.trim()) {
+      Alert.alert('Reset Password', 'Enter your email address first, then tap Forgot Password.');
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: 'jungletakbiolens://auth/callback',
+    });
+    Alert.alert(
+      'Reset Password',
+      error ? error.message : `A reset link has been sent to ${email.trim()}.`
+    );
+  };
+
   return (
-    <LinearGradient colors={['#1B2F29', '#2D5A27', '#1B5E20']} style={styles.gradient}>
-      <View style={[styles.safe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.hero}>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            <Text style={styles.appName}>JungleTak BioLens</Text>
+            <Text style={styles.tagline}>Forest Intelligence &amp; Botanical Identification</Text>
+          </View>
 
-            {/* Logo / Header */}
-            <View style={styles.header}>
-              <View style={styles.logoCircle}>
-                <Leaf color={Colors.white} size={40} />
-              </View>
-              <Text style={styles.appName}>BioLens</Text>
-              <Text style={styles.tagline}>By Jungle Tak</Text>
-              <Text style={styles.subtitle}>Field Intelligence Platform</Text>
+          <View style={styles.tabs}>
+            <View style={styles.tab}>
+              <Text style={styles.tabActive}>SIGN IN</Text>
+              <View style={styles.tabUnderline} />
             </View>
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => navigation.navigate('Signup')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.tabInactive}>SIGN UP</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Card */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>AGENT LOGIN</Text>
-              <Text style={styles.cardSub}>Sign in to your field account</Text>
+          <Text style={styles.fieldLabel}>EMAIL</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            placeholderTextColor={Colors.faint}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            underlineColorAndroid="transparent"
+          />
 
-              {/* Google Button */}
-              <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} disabled={googleLoading} activeOpacity={0.85}>
-                {googleLoading ? (
-                  <ActivityIndicator color={Colors.textPrimary} size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.googleIcon}>G</Text>
-                    <Text style={styles.googleText}>Continue with Google</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+          <Text style={[styles.fieldLabel, { marginTop: 22 }]}>PASSWORD</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your password"
+            placeholderTextColor={Colors.faint}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            underlineColorAndroid="transparent"
+          />
 
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
-                <View style={styles.dividerLine} />
-              </View>
+          <TouchableOpacity style={styles.forgot} onPress={handleForgot} activeOpacity={0.7}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
-              {/* Email */}
-              <View style={styles.inputWrapper}>
-                <Mail color={Colors.textLight} size={18} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email address"
-                  placeholderTextColor={Colors.textPlaceholder}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
+          <TouchableOpacity
+            style={styles.signInBtn}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color={Colors.white} size="small" />
+            ) : (
+              <Text style={styles.signInText}>SIGN IN</Text>
+            )}
+          </TouchableOpacity>
 
-              {/* Password */}
-              <View style={styles.inputWrapper}>
-                <Lock color={Colors.textLight} size={18} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={Colors.textPlaceholder}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-              {/* Login Button */}
-              <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-                {loading ? (
-                  <ActivityIndicator color={Colors.white} size="small" />
-                ) : (
-                  <>
-                    <LogIn color={Colors.white} size={18} />
-                    <Text style={styles.loginBtnText}>SIGN IN</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogle}
+            disabled={googleLoading}
+            activeOpacity={0.85}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={Colors.ink} size="small" />
+            ) : (
+              <>
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
-              {/* Sign Up Link */}
-              <TouchableOpacity style={styles.signupLink} onPress={() => navigation.navigate('Signup')}>
-                <Text style={styles.signupLinkText}>
-                  New agent?{' '}
-                  <Text style={styles.signupLinkBold}>CREATE ACCOUNT</Text>
-                </Text>
-              </TouchableOpacity>
-
-              {/* Terms */}
-              <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
-                <Text style={styles.termsText}>
-                  By continuing you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms & Agent Responsibility</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Footer */}
-            <Text style={styles.footer}>Validated By Jungle Tak Biolens Engine v1.0</Text>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </LinearGradient>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Terms')}
+            activeOpacity={0.7}
+            style={styles.termsWrap}
+          >
+            <Text style={styles.termsText}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+              {' '}and{' '}
+              <Text style={styles.termsLink}>Terms of Service</Text>.
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
-  safe: { flex: 1 },
+  screen: { flex: 1, backgroundColor: Colors.paper },
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
-  header: { alignItems: 'center', marginBottom: Spacing.xl },
-  logoCircle: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
+  scroll: { paddingHorizontal: 26, paddingTop: 28 },
+  hero: { alignItems: 'center', marginBottom: 34 },
+  logo: { width: 104, height: 104, borderRadius: 6 },
+  appName: {
+    fontFamily: Fonts.serif,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#10231D',
+    marginTop: 18,
+    letterSpacing: -0.5,
   },
-  appName: { fontSize: FontSize.display, fontWeight: '800', color: Colors.white, letterSpacing: 2 },
-  tagline: { fontSize: FontSize.md, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, marginTop: 2 },
-  subtitle: { fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.5, marginTop: 4 },
-  card: {
-    backgroundColor: Colors.surface, borderRadius: BorderRadius.xl,
-    padding: Spacing.xl, width: '100%', maxWidth: 400,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
+  tagline: {
+    fontSize: 14,
+    color: Colors.muted2,
+    marginTop: 8,
+    textAlign: 'center',
   },
-  cardTitle: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.primaryDark, letterSpacing: 2, textAlign: 'center' },
-  cardSub: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginTop: 4, marginBottom: Spacing.lg },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+    marginBottom: 30,
+  },
+  tab: { flex: 1, alignItems: 'flex-start', paddingBottom: 12 },
+  tabActive: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.ink,
+    letterSpacing: 2.5,
+  },
+  tabInactive: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.faint,
+    letterSpacing: 2.5,
+  },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: -1,
+    left: 0,
+    width: 56,
+    height: 2,
+    backgroundColor: Colors.ink,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.muted2,
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  input: {
+    fontSize: 16,
+    color: Colors.ink,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+  },
+  forgot: { alignSelf: 'flex-end', marginTop: 14 },
+  forgotText: { fontSize: 13, color: '#1F3A31' },
+  signInBtn: {
+    backgroundColor: Colors.forest,
+    borderRadius: 6,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 26,
+  },
+  signInText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 3,
+  },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, gap: 14 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.line },
+  dividerText: { fontSize: 12, color: Colors.faint, letterSpacing: 1.5 },
   googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.md,
-    paddingVertical: 14, paddingHorizontal: Spacing.lg,
-    borderWidth: 1, borderColor: Colors.border, gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.forest,
+    borderRadius: 6,
+    paddingVertical: 16,
   },
-  googleIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
-  googleText: { fontSize: FontSize.base, fontWeight: '600', color: Colors.textPrimary },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md, gap: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.borderLight },
-  dividerText: { fontSize: FontSize.sm, color: Colors.textMuted },
-  inputWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.border,
-    paddingHorizontal: Spacing.md, marginBottom: 12,
+  googleIcon: { fontSize: 20, fontWeight: '800', color: '#1A73E8' },
+  googleText: { fontSize: 15, fontWeight: '600', color: Colors.ink },
+  termsWrap: { marginTop: 26 },
+  termsText: {
+    fontSize: 11,
+    color: Colors.faint,
+    textAlign: 'center',
+    lineHeight: 17,
   },
-  inputIcon: { marginRight: 8 },
-  input: { flex: 1, fontSize: FontSize.base, color: Colors.textPrimary, paddingVertical: 14 },
-  loginBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.primary, borderRadius: BorderRadius.md,
-    paddingVertical: 15, gap: 8, marginTop: 4,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
-  },
-  loginBtnText: { fontSize: FontSize.base, fontWeight: '700', color: Colors.white, letterSpacing: 1.5 },
-  signupLink: { alignItems: 'center', marginTop: Spacing.lg },
-  signupLinkText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  signupLinkBold: { fontWeight: '700', color: Colors.primary },
-  termsText: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 16 },
-  termsLink: { color: Colors.primary, fontWeight: '600' },
-  footer: { color: 'rgba(255,255,255,0.35)', fontSize: FontSize.xs, marginTop: Spacing.lg, letterSpacing: 1 },
+  termsLink: { color: '#1F3A31', fontWeight: '600' },
 });

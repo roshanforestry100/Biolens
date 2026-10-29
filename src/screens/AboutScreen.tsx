@@ -8,7 +8,10 @@ import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Globe, Mail, Leaf, Users, Zap } from 'lucide-react-native';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
-// Exact text recovered from APK binary
+const DEVELOPER = 'Ashish Mehar';
+const COMPANY = 'Jungle Tak Multiventure Pvt. Ltd.';
+const SYSTEM_ARCH = 'System Architecture & Developer';
+
 const ABOUT_CONTENT = {
   biolens: `BioLens represents our primary digital field intelligence initiative, designed to empower both dedicated conservationists and nature enthusiasts. It functions as a powerful tool for the seamless identification and logging of botanical species in real-time, helping users observe and interact with the biodiversity surrounding them.`,
   ecosystem: `Beyond the BioLens project, our broader ecosystem includes India's first dedicated forest-based news platform and highly specialized GIS consultancy services. These initiatives are driven by the foundational vision and leadership of our team.`,
@@ -18,7 +21,7 @@ const ABOUT_CONTENT = {
 };
 
 const TEAM = [
-  { name: 'Ashish Mehar', role: 'Founder & Vision Lead', note: 'Foundational vision and leadership' },
+  { name: 'Ashish Mehar', role: 'Founder & System Architecture', note: 'System architecture, developer, and foundational vision of BioLens and Jungle Tak Multiventure Pvt. Ltd.' },
   { name: 'Tech Lead', role: 'System Architecture', note: 'Technical system architecture and ongoing digital development' },
 ];
 
@@ -54,14 +57,12 @@ export default function AboutScreen() {
           <Text style={styles.version}>Field Edition v1.0.0 · Jungle Tak Engine v1.0</Text>
         </LinearGradient>
 
-        {/* ABOUT */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ABOUT JUNGLE TAK MULTIVENTURE PVT. LTD.</Text>
           <Text style={styles.body}>{ABOUT_CONTENT.biolens}</Text>
           <Text style={[styles.body, { marginTop: 12 }]}>{ABOUT_CONTENT.ecosystem}</Text>
         </View>
 
-        {/* THE BIOLENS ECOSYSTEM IMPACT SUMMARY */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>THE BIOLENS ECOSYSTEM IMPACT SUMMARY</Text>
           <View style={styles.impactGrid}>
@@ -74,9 +75,8 @@ export default function AboutScreen() {
           </View>
         </View>
 
-        {/* THE CORE TEAM */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>THE CORE TEAM</Text>
+          <Text style={styles.sectionTitle}>SYSTEM ARCHITECTURE & DEVELOPMENT</Text>
           {TEAM.map((member, i) => (
             <View key={i} style={styles.teamCard}>
               <View style={styles.teamAvatar}>
@@ -91,7 +91,6 @@ export default function AboutScreen() {
           ))}
         </View>
 
-        {/* OTHER JUNGLE TAK PROJECTS */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>OTHER JUNGLE TAK PROJECTS</Text>
           <View style={styles.projectCard}>
@@ -110,7 +109,6 @@ export default function AboutScreen() {
           </View>
         </View>
 
-        {/* CONTACT */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CONTACT JUNGLE TAK</Text>
           <Text style={styles.body}>{ABOUT_CONTENT.contact}</Text>
@@ -124,10 +122,21 @@ export default function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Privacy */}
         <TouchableOpacity style={styles.privacyRow} onPress={() => Linking.openURL('https://jungletak.in/privacy-policy')}>
           <Text style={styles.privacyText}>Privacy Policy · jungletak.in/privacy-policy</Text>
         </TouchableOpacity>
+
+        <View style={styles.devBlock}>
+          <Text style={styles.devLabel}>SYSTEM ARCHITECTURE & DEVELOPER</Text>
+          <Text style={styles.devName}>{DEVELOPER}</Text>
+          <Text style={styles.devCo}>{COMPANY}</Text>
+        </View>
+
+        <View style={styles.watermark}>
+          <Text style={styles.watermarkText}>
+            {SYSTEM_ARCH} · {DEVELOPER} · {COMPANY}
+          </Text>
+        </View>
 
         <Text style={styles.footer}>Validated By Jungle Tak Biolens Engine v1.0</Text>
         <View style={{ height: Spacing.xxl }} />
@@ -189,5 +198,47 @@ const styles = StyleSheet.create({
   contactLink: { fontSize: FontSize.base, color: Colors.primary, fontWeight: '600' },
   privacyRow: { alignItems: 'center', margin: Spacing.lg },
   privacyText: { fontSize: FontSize.xs, color: Colors.textMuted },
+  devBlock: {
+    marginTop: Spacing.md,
+    alignItems: 'center',
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  devLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.primary,
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  devName: {
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+    color: Colors.ink,
+    textAlign: 'center',
+    marginBottom: 1,
+  },
+  devCo: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  watermark: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  watermarkText: {
+    fontSize: FontSize.xs,
+    color: Colors.faint,
+    letterSpacing: 1,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   footer: { textAlign: 'center', fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.md },
 });

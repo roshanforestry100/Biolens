@@ -8,7 +8,10 @@ import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Shield, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
-// Text recovered exactly from APK binary
+const DEVELOPER = 'Ashish Mehar';
+const COMPANY = 'Jungle Tak Multiventure Pvt. Ltd.';
+const SYSTEM_ARCH = 'System Architecture & Developer';
+
 const TERMS = [
   {
     title: 'AGENT RESPONSIBILITY',
@@ -88,6 +91,17 @@ export default function TermsScreen() {
             By using BioLens, you acknowledge that you have read and agree to the Jungle Tak Field Directive and Agent Responsibility protocols.
           </Text>
           <Text style={styles.footerSub}>Validated By Jungle Tak Biolens Engine v1.0</Text>
+          <View style={styles.devBlock}>
+            <Text style={styles.devLabel}>System Architecture & Developer</Text>
+            <Text style={styles.devName}>{DEVELOPER}</Text>
+            <Text style={styles.devCo}>{COMPANY}</Text>
+          </View>
+        </View>
+
+        <View style={styles.watermark}>
+          <Text style={styles.watermarkText}>
+            {SYSTEM_ARCH} · {DEVELOPER} · {COMPANY}
+          </Text>
         </View>
 
         <View style={{ height: Spacing.xxl }} />
@@ -117,4 +131,23 @@ const styles = StyleSheet.create({
   footer: { margin: Spacing.lg, padding: Spacing.lg, backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.border },
   footerText: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20, textAlign: 'center' },
   footerSub: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.sm },
+  devBlock: { marginTop: Spacing.md, alignItems: 'center', paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  devLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.primary, letterSpacing: 1, textAlign: 'center', marginBottom: 2 },
+  devName: { fontSize: FontSize.sm, fontWeight: '800', color: Colors.ink, textAlign: 'center', marginBottom: 1 },
+  devCo: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
+  watermark: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  watermarkText: {
+    fontSize: FontSize.xs,
+    color: Colors.faint,
+    letterSpacing: 1,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
 });

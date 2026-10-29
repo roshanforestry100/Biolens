@@ -1,5 +1,22 @@
+import { Platform } from 'react-native';
+
 // App color palette - recovered from APK binary analysis
 export const Colors = {
+  // Editorial palette used by the shipped BioLens design.
+  paper: '#F5F4EF',
+  paperDeep: '#EDEBE4',
+  card: '#FFFFFF',
+  line: '#E4E1D8',
+  lineSoft: '#EFEDE6',
+  ink: '#121412',
+  forest: '#1E3A31',
+  forestDeep: '#14241E',
+  moss: '#2F6A4F',
+  muted2: '#6F746F',
+  faint: '#9A9E98',
+  chipBg: '#F1EFE8',
+  gold2: '#D9A420',
+  red2: '#B3261E',
   // Primary forest greens
   primary: '#1B5E20',
   primaryDark: '#1B2F29',
@@ -48,6 +65,11 @@ export const Colors = {
 
   // Dark
   dark: '#141716',
+};
+
+export const Fonts = {
+  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }) as string,
+  mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) as string,
 };
 
 export const Spacing = {

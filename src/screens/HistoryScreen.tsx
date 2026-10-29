@@ -1,20 +1,20 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
   StatusBar, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ChevronRight, AlertTriangle, CheckCircle, Clock } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
-import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
-import { getUserScans, isInvasiveScan } from '../lib/storage';
+import { Colors, Fonts, Spacing } from '../constants/theme';
+import { getUserScans } from '../lib/storage';
 import { ScanResult } from '../types';
 
 function formatDate(iso: string) {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -51,79 +51,71 @@ export default function HistoryScreen() {
   const renderItem = ({ item }: { item: ScanResult }) => (
     <TouchableOpacity
       style={styles.card}
+      activeOpacity={0.75}
       onPress={() => navigation.navigate('Result', { scan: item })}
-      activeOpacity={0.8}
     >
-      <View style={styles.cardLeft}>
-        <View style={[styles.statusDot, { backgroundColor: isInvasiveScan(item) ? Colors.danger : Colors.success }]} />
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={styles.sciName}>{item.scientific_name}</Text>
-        <Text style={styles.commonName}>{item.common_name}</Text>
-        <View style={styles.cardMeta}>
-          <Clock color={Colors.textMuted} size={11} />
-          <Text style={styles.metaText}>{formatDate(item.created_at)}</Text>
-          {item.region ? (
-            <>
-              <Text style={styles.metaDot}>Â·</Text>
-              <Text style={styles.metaText}>{item.region.substring(0, 16)}</Text>
-            </>
-          ) : null}
+      {item.image_uri ? (
+        <Image source={{ uri: item.image_uri }} style={styles.thumb} resizeMode="cover" />
+      ) : (
+        <View style={styles.thumb} />
+      )}
+      <View style={styles.body}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.common_name || item.scientific_name}
+        </Text>
+        <Text style={styles.sci} numberOfLines={1}>
+          {item.scientific_name}
+        </Text>
+        <View style={styles.chips}>
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>{Math.round(item.confidence || 0)}%</Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>{item.region || 'India Match'}</Text>
+          </View>
+          <Text style={styles.date}>{formatDate(item.created_at)}</Text>
         </View>
       </View>
-      <View style={styles.cardRight}>
-        {isInvasiveScan(item) ? (
-          <AlertTriangle color={Colors.danger} size={16} />
-        ) : (
-          <CheckCircle color={Colors.success} size={16} />
-        )}
-        <Text style={styles.confidence}>{item.confidence}%</Text>
-        <ChevronRight color={Colors.textMuted} size={16} />
-      </View>
+      <ChevronRight color={Colors.faint} size={18} />
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#1B2F29', '#2D5A27']} style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.headerTitle}>SEARCH HISTORY</Text>
-        <Text style={styles.headerSub}>Field Intelligence Snapshot Â· {scans.length} records</Text>
-      </LinearGradient>
+    <View style={styles.screen}>
+      <StatusBar barStyle="dark-content" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <ArrowLeft color={Colors.ink} size={19} />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.title}>Research History</Text>
+          <Text style={styles.subtitle}>
+            {scans.length} {scans.length === 1 ? 'RECORD' : 'RECORDS'}
+          </Text>
+        </View>
+      </View>
 
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Retrieving field logs...</Text>
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={Colors.forest} />
         </View>
       ) : (
         <FlatList
           data={scans}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id || item.scanId || item.created_at}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 28 }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.forest} />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Search color={Colors.border} size={48} />
-              <Text style={styles.emptyTitle}>No Field Scans Yet</Text>
-              <Text style={styles.emptyText}>Your identification history will appear here.</Text>
+              <Text style={styles.emptyTitle}>No field scans yet</Text>
+              <Text style={styles.emptyText}>
+                Identifications you record will be archived here.
+              </Text>
             </View>
-          }
-          ListHeaderComponent={
-            scans.length > 0 ? (
-              <View style={styles.listHeader}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.danger }]} />
-                  <Text style={styles.legendText}>Invasive</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
-                  <Text style={styles.legendText}>Native</Text>
-                </View>
-              </View>
-            ) : undefined
           }
         />
       )}
@@ -132,36 +124,48 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.white, letterSpacing: 2, paddingTop: Spacing.sm },
-  headerSub: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.6)', marginTop: 4, letterSpacing: 1 },
-  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { fontSize: FontSize.sm, color: Colors.textMuted, fontStyle: 'italic' },
-  list: { padding: Spacing.lg, gap: 8, flexGrow: 1 },
-  listHeader: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.sm },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: FontSize.xs, color: Colors.textMuted },
-  card: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surface, borderRadius: BorderRadius.md,
-    padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderLight,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  screen: { flex: 1, backgroundColor: Colors.paper },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 16,
   },
-  cardLeft: { marginRight: 12 },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  cardBody: { flex: 1 },
-  sciName: { fontSize: FontSize.base, fontWeight: '700', color: Colors.textPrimary, fontStyle: 'italic' },
-  commonName: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  metaText: { fontSize: FontSize.xs, color: Colors.textMuted },
-  metaDot: { color: Colors.border },
-  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  confidence: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primary },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, marginTop: Spacing.xxl },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md },
-  emptyText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginTop: 8 },
+  backBtn: { paddingVertical: 6, paddingRight: 2 },
+  title: { fontFamily: Fonts.serif, fontSize: 26, fontWeight: '700', color: Colors.ink },
+  subtitle: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: Colors.muted2,
+    letterSpacing: 1.6,
+    marginTop: 3,
+  },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: Spacing.lg, gap: 8, flexGrow: 1 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    padding: 12,
+  },
+  thumb: { width: 46, height: 46, borderRadius: 5, backgroundColor: Colors.chipBg },
+  body: { flex: 1, marginLeft: 12 },
+  name: { fontSize: 14, fontWeight: '700', color: Colors.ink },
+  sci: { fontSize: 11.5, color: Colors.muted2, fontStyle: 'italic', marginTop: 1 },
+  chips: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  chip: {
+    backgroundColor: Colors.chipBg,
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  chipText: { fontSize: 10, color: Colors.muted2, fontWeight: '600' },
+  date: { fontSize: 10, color: Colors.faint, marginLeft: 2 },
+  empty: { padding: 30, alignItems: 'center' },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: Colors.ink },
+  emptyText: { fontSize: 12, color: Colors.muted2, textAlign: 'center', marginTop: 6 },
 });
-

@@ -1,20 +1,20 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, StatusBar,
+  View, Text, StyleSheet, ScrollView, RefreshControl, Image,
+  TouchableOpacity, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import {
-  Leaf, Star, ScanLine, MapPin, Activity,
-  Globe, ChevronRight, Info,
-} from 'lucide-react-native';
+import { ChevronRight, ShieldCheck, TriangleAlert } from 'lucide-react-native';
 
 import { useAuth } from '../context/AuthContext';
-import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
-import { getUserScans, getStats, isInvasiveScan, BioLensStats } from '../lib/storage';
+import { Colors, Spacing } from '../constants/theme';
+import {
+  getUserScans, getStats, isInvasiveScan, isNativeScan, BioLensStats,
+} from '../lib/storage';
 import { ScanResult } from '../types';
+
+const LOGO = require('../../assets/logo.png');
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -23,15 +23,15 @@ export default function HomeScreen() {
   const [scans, setScans] = useState<ScanResult[]>([]);
   const [stats, setStats] = useState<BioLensStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [s, st] = await Promise.all([
-      getUserScans(user.id),
-      getStats(),
-    ]);
-    setScans(s);
-    setStats(st);
+    const scans = await getUserScans(user.id);
+    const stats = await getStats(scans);
+    setScans(scans);
+    setStats(stats);
+    setReady(true);
   }, [user]);
 
   useFocusEffect(
@@ -47,217 +47,319 @@ export default function HomeScreen() {
   };
 
   const totalScans = stats?.totalScans ?? scans.length;
-  const uniqueSpecies = stats?.totalSpecies ?? new Set(scans.map((s) => s.scientific_name)).size;
-  const stars = Math.floor(uniqueSpecies / 5);
-  const regionsCovered = stats?.totalRegions ?? new Set(scans.map((s) => s.region).filter(Boolean)).size;
-  const invasiveCount =
-    stats?.highRiskCount ?? scans.filter((s) => isInvasiveScan(s)).length;
+  const uniqueSpecies =
+    stats?.totalSpecies ?? new Set(scans.map((s) => s.scientific_name)).size;
+  const activeRegion = stats?.activeRegion ?? 'India Match';
+  const lastScan = stats?.lastScanText ?? 'No scans yet';
+  const highRisk = stats?.highRiskCount ?? scans.filter(isInvasiveScan).length;
+  const avgConfidence = stats?.averageConfidence ?? 0;
+  const latestInvasive = stats?.isLatestInvasive ?? false;
 
-  const cardStats = [
-    { label: 'TOTAL SCANS', value: totalScans, icon: ScanLine, color: Colors.primary },
-    { label: 'UNIQUE SPECIES', value: uniqueSpecies, icon: Leaf, color: Colors.primaryLight },
-    { label: 'STARS EARNED', value: stars, icon: Star, color: '#FFD700' },
-    { label: 'REGIONS COVERED', value: regionsCovered, icon: MapPin, color: Colors.blue },
-    { label: 'AVG CONFIDENCE', value: `${stats?.averageConfidence ?? 0}%`, icon: Activity, color: Colors.accent },
-    { label: 'INVASIVE ALERTS', value: invasiveCount, icon: Globe, color: Colors.danger },
-  ];
+  const recent = scans.slice(0, 10);
+  const recentInvasive = recent.filter(isInvasiveScan).length;
+  const recentNative = recent.filter(isNativeScan).length;
+  const recentDistinct = new Set(recent.map((s) => s.scientific_name)).size;
 
-  const recentScans = scans.slice(0, 5);
+  const trend = stats?.confidenceTrend?.length
+    ? stats.confidenceTrend
+    : [0, 0, 0, 0, 0, 0, 0];
+  const maxTrend = Math.max(...trend, 1);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={styles.screen}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.forest} />
+        }
+      >
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Image source={LOGO} style={styles.headerLogo} resizeMode="contain" />
+          <Text style={styles.headerTitle}>Field Dashboard</Text>
+        </View>
 
-      {/* Header */}
-      <LinearGradient colors={['#1B2F29', '#2D5A27']} style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.greeting}>FIELD BASE</Text>
-            <Text style={styles.userName}>
-              Agent {user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Field Agent'}
-            </Text>
+        {/* Snapshot */}
+        <View style={styles.card}>
+          <Text style={styles.cardEyebrow}>FIELD INTELLIGENCE SNAPSHOT</Text>
+
+          <View style={styles.snapRow}>
+            <Text style={styles.snapLabel}>Active Region:</Text>
+            <Text style={styles.snapValue}>{activeRegion}</Text>
           </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.infoBtn} onPress={() => navigation.navigate('About')}>
-              <Info color={Colors.white} size={20} />
-            </TouchableOpacity>
+          <View style={styles.snapRow}>
+            <Text style={styles.snapLabel}>Last Scan:</Text>
+            <Text style={styles.snapValue}>{lastScan}</Text>
+          </View>
+          <View style={styles.snapRow}>
+            <Text style={styles.snapLabel}>High-Risk Species Detected:</Text>
+            <Text style={styles.snapValue}>{highRisk}</Text>
+          </View>
+          <View style={styles.snapRow}>
+            <Text style={styles.snapLabel}>Confidence Average:</Text>
+            <Text style={styles.snapValue}>{avgConfidence}%</Text>
+          </View>
+
+          <View style={styles.snapDivider} />
+
+          <View style={styles.snapTotals}>
+            <View style={styles.snapTotalCell}>
+              <Text style={styles.snapTotalValue}>{totalScans}</Text>
+              <Text style={styles.snapTotalLabel}>TOTAL SCANS</Text>
+            </View>
+            <View style={styles.snapTotalCell}>
+              <Text style={styles.snapTotalValue}>{uniqueSpecies}</Text>
+              <Text style={styles.snapTotalLabel}>UNIQUE SPECIES</Text>
+            </View>
           </View>
         </View>
 
-        {/* Engine badge */}
-        <View style={styles.engineBadge}>
-          <Leaf color={Colors.accent} size={12} />
-          <Text style={styles.engineText}>
-            BioLens Engine v1.0 · {stats?.lastScanText || 'Active'}
+        {/* Invasive banner */}
+        <View style={[styles.banner, latestInvasive ? styles.bannerRisk : styles.bannerSafe]}>
+          {latestInvasive ? (
+            <TriangleAlert color={Colors.red2} size={16} />
+          ) : (
+            <ShieldCheck color={Colors.moss} size={16} />
+          )}
+          <Text style={[styles.bannerText, latestInvasive && { color: Colors.red2 }]}>
+            {latestInvasive
+              ? 'Invasive species flagged in your latest scan'
+              : 'No invasive species in recent scan'}
           </Text>
         </View>
-      </LinearGradient>
 
-      <ScrollView
-        style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* THE BIOLENS ECOSYSTEM IMPACT SUMMARY */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>THE BIOLENS ECOSYSTEM IMPACT SUMMARY</Text>
-          <View style={styles.statsGrid}>
-            {cardStats.map((stat, i) => (
-              <View key={i} style={styles.statCard}>
-                <View style={[styles.statIconBg, { backgroundColor: stat.color + '20' }]}>
-                  <stat.icon color={stat.color} size={20} />
-                </View>
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
+        {/* Ecosystem impact */}
+        <View style={styles.card}>
+          <Text style={styles.cardEyebrowCenter}>ECOSYSTEM IMPACT SUMMARY</Text>
+          <Text style={styles.impactLead}>Recent Findings ({recent.length} scans):</Text>
+          <Text style={styles.impactLine}>• {recentInvasive} invasive species detected</Text>
+          <Text style={styles.impactLine}>• {recentNative} native species recorded</Text>
+          <Text style={styles.impactLine}>• {recentDistinct} distinct biosignatures logged</Text>
+
+          <Text style={styles.trendLabel}>Confidence Trend (Last 7 Scans)</Text>
+          <View style={styles.trendChart}>
+            {trend.map((value, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.trendBar,
+                  { height: Math.max(8, Math.round((value / maxTrend) * 42)) },
+                ]}
+              />
             ))}
           </View>
         </View>
 
-        {/* Star system info */}
-        <View style={styles.starNote}>
-          <Star color={Colors.gold} size={14} />
-          <Text style={styles.starNoteText}>Star awarded per 5 distinct species identified</Text>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>FIELD ACTIVITY LOG</Text>
+        {/* History */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionEyebrow}>RESEARCH HISTORY</Text>
           <TouchableOpacity
-            style={styles.scanCTA}
-            onPress={() => navigation.navigate('Identify')}
-            activeOpacity={0.85}
+            onPress={() => navigation.navigate('History')}
+            hitSlop={10}
+            activeOpacity={0.7}
           >
-            <LinearGradient colors={['#2D5A27', '#1B5E20']} style={styles.scanCTAGradient}>
-              <ScanLine color={Colors.white} size={28} />
-              <View style={styles.scanCTAText}>
-                <Text style={styles.scanCTATitle}>INITIATE IDENTIFICATION</Text>
-                <Text style={styles.scanCTASub}>Scan a plant or species in the field</Text>
-              </View>
-              <ChevronRight color={Colors.white} size={20} />
-            </LinearGradient>
+            <Text style={styles.sectionLink}>VIEW ALL</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Recent Scans */}
-        {recentScans.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>RECENT FIELD INTELLIGENCE</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('History')}>
-                <Text style={styles.seeAll}>SEE ALL</Text>
-              </TouchableOpacity>
-            </View>
-            {recentScans.map((scan, i) => (
-              <TouchableOpacity
-                key={scan.id || i}
-                style={styles.scanRow}
-                onPress={() => navigation.navigate('Result', { scan })}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.scanDot, {
-                  backgroundColor: isInvasiveScan(scan)
-                    ? Colors.dangerLight : Colors.successLight
-                }]} />
-                <View style={styles.scanInfo}>
-                  <Text style={styles.scanName}>{scan.scientific_name}</Text>
-                  <Text style={styles.scanCommon}>{scan.common_name}</Text>
-                </View>
-                <View style={styles.scanRight}>
-                  <Text style={styles.scanConf}>{scan.confidence}%</Text>
-                  <ChevronRight color={Colors.textMuted} size={16} />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Empty state */}
-        {scans.length === 0 && (
-          <View style={styles.emptyState}>
-            <Leaf color={Colors.border} size={48} />
-            <Text style={styles.emptyTitle}>No Field Scans Yet</Text>
+        {!ready ? (
+          <ActivityIndicator color={Colors.forest} style={{ marginTop: 24 }} />
+        ) : scans.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No field scans yet</Text>
             <Text style={styles.emptyText}>
-              Start identifying species to build your field intelligence database.
+              Open the Scan tab and identify your first specimen to start building field
+              intelligence.
             </Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => navigation.navigate('Identify')}
-            >
-              <Text style={styles.emptyBtnText}>OPEN CAMERA</Text>
-            </TouchableOpacity>
           </View>
+        ) : (
+          scans.map((scan, i) => (
+            <TouchableOpacity
+              key={scan.id || scan.scanId || i}
+              style={styles.scanRow}
+              activeOpacity={0.75}
+              onPress={() => navigation.navigate('Result', { scan })}
+            >
+              {scan.image_uri ? (
+                <Image source={{ uri: scan.image_uri }} style={styles.thumb} resizeMode="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty]} />
+              )}
+              <View style={styles.scanInfo}>
+                <Text style={styles.scanName} numberOfLines={1}>
+                  {scan.common_name || scan.scientific_name}
+                </Text>
+                <Text style={styles.scanSci} numberOfLines={1}>
+                  {scan.scientific_name}
+                </Text>
+                <View style={styles.chips}>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{Math.round(scan.confidence || 0)}%</Text>
+                  </View>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{scan.region || 'India Match'}</Text>
+                  </View>
+                </View>
+              </View>
+              <ChevronRight color={Colors.faint} size={18} />
+            </TouchableOpacity>
+          ))
         )}
-
-        <View style={{ height: Spacing.xxl }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
-  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: Spacing.sm },
-  greeting: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, fontWeight: '600' },
-  userName: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.white, marginTop: 2 },
-  headerRight: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  infoBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
+  screen: { flex: 1, backgroundColor: Colors.paper },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 14,
+    gap: 10,
   },
-  engineBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: BorderRadius.full,
-    paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 8,
+  headerLogo: { width: 30, height: 30, borderRadius: 3 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3 },
+  card: {
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginBottom: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  engineText: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.8)', letterSpacing: 0.5 },
-  scroll: { flex: 1 },
-  section: { paddingHorizontal: Spacing.lg, marginTop: Spacing.lg },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: FontSize.xs, fontWeight: '800', color: Colors.textMuted, letterSpacing: 1.5, marginBottom: 12 },
-  seeAll: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.primary, letterSpacing: 1 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: {
-    backgroundColor: Colors.surface, borderRadius: BorderRadius.lg,
-    padding: Spacing.md, width: '47.5%',
-    borderWidth: 1, borderColor: Colors.borderLight,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  cardEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.muted2,
+    letterSpacing: 1.6,
+    marginBottom: 16,
   },
-  statIconBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  statValue: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.textPrimary },
-  statLabel: { fontSize: FontSize.xs, color: Colors.textMuted, letterSpacing: 1, marginTop: 2 },
-  starNote: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: Spacing.lg, marginTop: Spacing.sm,
-    backgroundColor: '#FFF8F0', borderRadius: BorderRadius.md,
-    padding: Spacing.sm, borderWidth: 1, borderColor: '#FFE0B2',
+  cardEyebrowCenter: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.muted2,
+    letterSpacing: 1.6,
+    textAlign: 'center',
+    marginBottom: 18,
   },
-  starNoteText: { fontSize: FontSize.xs, color: Colors.warning, fontStyle: 'italic' },
-  scanCTA: { borderRadius: BorderRadius.lg, overflow: 'hidden', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  scanCTAGradient: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md },
-  scanCTAText: { flex: 1 },
-  scanCTATitle: { fontSize: FontSize.base, fontWeight: '800', color: Colors.white, letterSpacing: 1 },
-  scanCTASub: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  snapRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 12,
+    gap: 12,
+  },
+  snapLabel: { fontSize: 13, color: Colors.muted2, flexShrink: 1 },
+  snapValue: { fontSize: 13, fontWeight: '700', color: Colors.ink },
+  snapDivider: { height: 1, backgroundColor: Colors.lineSoft, marginVertical: 12 },
+  snapTotals: { flexDirection: 'row' },
+  snapTotalCell: { flex: 1, alignItems: 'center' },
+  snapTotalValue: { fontSize: 30, fontWeight: '300', color: Colors.ink },
+  snapTotalLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.muted2,
+    letterSpacing: 1.4,
+    marginTop: 4,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: Spacing.lg,
+    marginBottom: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  bannerSafe: { backgroundColor: '#EAF2EC', borderColor: '#CFE0D4' },
+  bannerRisk: { backgroundColor: '#FBEDEA', borderColor: '#EFD2CC' },
+  bannerText: { fontSize: 12.5, fontWeight: '600', color: Colors.moss, flex: 1 },
+  impactLead: { fontSize: 12.5, color: Colors.ink, marginBottom: 8 },
+  impactLine: { fontSize: 12.5, color: Colors.muted2, lineHeight: 20 },
+  trendLabel: { fontSize: 12, color: Colors.muted2, marginTop: 22, marginBottom: 10 },
+  trendChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    height: 46,
+    paddingBottom: 4,
+  },
+  trendBar: { flex: 1, backgroundColor: '#151A18', borderRadius: 2 },
+  sectionEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.muted2,
+    letterSpacing: 1.8,
+  },
+  sectionLink: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.ink,
+    letterSpacing: 1.2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 10,
+    marginHorizontal: Spacing.lg,
+  },
   scanRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surface, borderRadius: BorderRadius.md,
-    padding: Spacing.md, marginBottom: 8,
-    borderWidth: 1, borderColor: Colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    padding: 12,
   },
-  scanDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  scanInfo: { flex: 1 },
-  scanName: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textPrimary, fontStyle: 'italic' },
-  scanCommon: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
-  scanRight: { alignItems: 'flex-end', flexDirection: 'row', gap: 4 },
-  scanConf: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primary },
-  emptyState: { alignItems: 'center', padding: Spacing.xxl },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md },
-  emptyText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 20 },
-  emptyBtn: {
-    backgroundColor: Colors.primary, borderRadius: BorderRadius.md,
-    paddingVertical: 12, paddingHorizontal: Spacing.xl, marginTop: Spacing.lg,
+  thumb: { width: 46, height: 46, borderRadius: 5, backgroundColor: Colors.chipBg },
+  thumbEmpty: { backgroundColor: Colors.chipBg },
+  scanInfo: { flex: 1, marginLeft: 12 },
+  scanName: { fontSize: 14, fontWeight: '700', color: Colors.ink },
+  scanSci: {
+    fontSize: 11.5,
+    color: Colors.muted2,
+    fontStyle: 'italic',
+    marginTop: 1,
   },
-  emptyBtnText: { fontSize: FontSize.base, fontWeight: '700', color: Colors.white, letterSpacing: 1 },
+  chips: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  chip: {
+    backgroundColor: Colors.chipBg,
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  chipText: { fontSize: 10, color: Colors.muted2, fontWeight: '600' },
+  emptyCard: {
+    marginHorizontal: Spacing.lg,
+    padding: 22,
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    alignItems: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: Colors.ink },
+  emptyText: {
+    fontSize: 12,
+    color: Colors.muted2,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 6,
+  },
 });
